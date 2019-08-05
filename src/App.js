@@ -1,27 +1,19 @@
-import React, { useCallback, useState, useMemo, useRef, useContext } from 'react';
+import React, { useCallback, useState, useRef, useMemo, useContext } from 'react';
 
 const SelectionContext = React.createContext(0)
 const NullContext = React.createContext({ x: 0, y: 0 })
 
-const Shape = ({ x, y, selected, ...props }) => {
+const selectedShapes = [0, 1, 2]
+
+const Shape = React.memo(({ x, y, selected, ...props }) => {
   console.log('Shape()')
 
   const translate = useContext(selected ? SelectionContext : NullContext)
 
-  return (
+  return useMemo(() => (
     <rect x={x + translate.x} y={y + translate.y} width={90} height={90} {...props} />
-  )
-}
-
-const Shape2 = ({ x, y, selected, ...props }) => {
-  return useMemo(() => {
-    return <Shape x={x} y={y} selected={selected} {...props} />
-  }, [selected])
-}
-
-const selectedShapes = [1]
-
-const ShapeMemo = React.memo(Shape)
+  ), [x, y, translate, props])
+})
 
 const Canvas = React.memo(({ shapes, onMouseDown, onMouseMove, onMouseUp }) => {
   console.log('Canvas()')
@@ -29,7 +21,7 @@ const Canvas = React.memo(({ shapes, onMouseDown, onMouseMove, onMouseUp }) => {
   return (
     <svg width="1000" height="1000">
       {shapes.map(shape => (
-        <ShapeMemo
+        <Shape
           key={shape.id}
           x={shape.x}
           y={shape.y}
@@ -44,45 +36,58 @@ const Canvas = React.memo(({ shapes, onMouseDown, onMouseMove, onMouseUp }) => {
 })
 
 function App() {
-  const [shapes, setShapes] = useState([
-    { id: 1, x: 100, y: 100 },
-    { id: 2, x: 200, y: 100 },
-    { id: 3, x: 300, y: 100 },
-    { id: 4, x: 400, y: 100 },
-  ])
-  const touchStart = useRef()
-  const [translate, setTranslate] = useState({ x: 0, y: 0 })
-  const translateRef = useRef(translate)
+  const [translate, setTranslate] = useState({
+    x: 0,
+    y: 0
+  })
+  const [shapes, setShapes] = useState(Array.from({ length: 100 }, (_, index) => ({
+    id: index,
+    x: index % 10 * 100 + 10,
+    y: Math.floor(index / 10) * 100 + 10,
+  })))
 
+  const touchStart = useRef()
+ 
   const handleMouseDown = useCallback(event => {
-    touchStart.current = { x: event.pageX, y: event.pageY }
+    touchStart.current = {
+      x: event.pageX,
+      y: event.pageY
+    }
   }, [touchStart])
 
   const handleMouseMove = useCallback(event => {
     if (event.buttons === 1) {
-      setTranslate({ x: event.pageX - touchStart.current.x, y: event.pageY - touchStart.current.y })
-      translateRef.current = { x: event.pageX - touchStart.current.x, y: event.pageY - touchStart.current.y }
+      setTranslate({
+        x: event.pageX - touchStart.current.x,
+        y: event.pageY - touchStart.current.y
+      })
     }
   }, [touchStart, setTranslate])
 
   const handleMouseUp = useCallback(event => {
-      setTranslate({ x: 0, y: 0 })
-
-      setShapes(shapes.map(shape => selectedShapes.includes(shape.id)
-        ? { ...shape, x: shape.x + translateRef.current.x, y: shape.y + translateRef.current.y }
-        : shape
+      setShapes(shapes.map(shape => selectedShapes.includes(shape.id) ? {
+          ...shape,
+          x: shape.x + event.pageX - touchStart.current.x,
+          y: shape.y + event.pageY - touchStart.current.y,
+        } : shape
       ))
-      
-      translateRef.current = { x: 0, y: 0 }
-  }, [shapes, selectedShapes, setTranslate])
 
-  console.log('App()')
+      setTranslate({
+        x: 0,
+        y: 0
+      })
+   }, [shapes, setTranslate])
 
   return (
     <SelectionContext.Provider value={translate}>
-      <Canvas shapes={shapes} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} />
+      <Canvas
+        shapes={shapes}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      />
     </SelectionContext.Provider>
   );
 }
 
-export default App;
+export default App

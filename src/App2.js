@@ -1,9 +1,9 @@
-import React, { useCallback, useState, useMemo, useRef, useContext } from 'react';
+import React from 'react';
 
 const SelectionContext = React.createContext(0)
 const NullContext = React.createContext({ x: 0, y: 0 })
 
-const selectedShapes = [1, 2]
+const selectedShapes = [0, 1, 2]
 
 class Shape extends React.PureComponent {
   render() {
@@ -15,7 +15,7 @@ class Shape extends React.PureComponent {
     return (
       <Context.Consumer>
         {translate => (
-          console.log('translate'),
+          selected && console.log('translate'),
           <rect x={x + translate.x} y={y + translate.y} width={90} height={90} {...props} />
         )}
       </Context.Consumer>
@@ -26,12 +26,12 @@ class Shape extends React.PureComponent {
 class Canvas extends React.PureComponent {
   render() {
     const { shapes, onMouseDown, onMouseMove, onMouseUp } = this.props
+
     console.log('Canvas()')
 
     return (
       <svg width="1000" height="1000">
         {shapes.map(shape => (
-          console.log('map'),
           <Shape
             key={shape.id}
             x={shape.x}
@@ -47,21 +47,17 @@ class Canvas extends React.PureComponent {
   }
 }
 
-class App extends React.PureComponent {
+class App extends React.PureComponent {  
   state = {
     translate: { x: 0, y: 0 },
-    shapes: [
-      { id: 1, x: 100, y: 100 },
-      { id: 2, x: 200, y: 100 },
-      { id: 3, x: 300, y: 100 },
-      { id: 4, x: 400, y: 100 },
-    ],
     shapes: Array.from({ length: 100 }, (_, index) => ({
       id: index,
-      x: index % 10 * 100,
-      y: Math.round(index / 10) * 100,
+      x: index % 10 * 100 + 10,
+      y: Math.floor(index / 10) * 100 + 10,
     }))
   }
+
+  touchStart = null
 
   handleMouseDown = event => {
     this.touchStart = {
@@ -82,16 +78,13 @@ class App extends React.PureComponent {
   }
 
   handleMouseUp = event => {
-    this.setState({ x: 0, y: 0 })
-
     this.setState({
-      shapes: this.state.shapes.map(shape => selectedShapes.includes(shape.id)
-        ? {
-            ...shape,
-            x: shape.x + this.state.translate.x,
-            y: shape.y + this.state.translate.y,
-        }
-        : shape),
+      shapes: this.state.shapes.map(shape => selectedShapes.includes(shape.id) ? {
+          ...shape,
+          x: shape.x + event.pageX - this.touchStart.x,
+          y: shape.y + event.pageY - this.touchStart.y,
+        } : shape
+      ),
       translate: {
         x: 0,
         y: 0
